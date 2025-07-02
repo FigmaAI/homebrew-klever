@@ -1,0 +1,40 @@
+name: Update Homebrew Cask
+
+on:
+  repository_dispatch:
+    types: [new-release]
+
+jobs:
+  update-cask:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # Use a personal access token to be able to push changes
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update Cask file
+        run: |
+          VERSION="${{ github.event.client_payload.version }}"
+          SHA256="${{ github.event.client_payload.sha256 }}"
+          
+          if [ -z "$VERSION" ] || [ -z "$SHA256" ]; then
+            echo "Version or SHA256 is missing from the payload."
+            exit 1
+          fi
+          
+          # Use sed to update the version and sha256 in the Cask file
+          sed -i "s/^  version .*/  version \"$VERSION\"/" Casks/klever-desktop.rb
+          sed -i "s/^  sha256 .*/  sha256 \"$SHA256\"/" Casks/klever-desktop.rb
+          
+          echo "Cask file updated to version $VERSION"
+          cat Casks/klever-desktop.rb
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add Casks/klever-desktop.rb
+          git commit -m "Update KleverDesktop to v${{ github.event.client_payload.version }}" || echo "No changes to commit"
+          git push 
